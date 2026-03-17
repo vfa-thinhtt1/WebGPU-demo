@@ -1,5 +1,33 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { clamp01, configureCanvasSize } from './webgpuUtils.js'
+
+function FPSStats() {
+  const [fps, setFps] = useState(0)
+  const frameCount = useRef(0)
+  const lastTime = useRef(performance.now())
+
+  useEffect(() => {
+    let frameId
+    const update = () => {
+      frameCount.current++
+      const now = performance.now()
+      if (now - lastTime.current >= 1000) {
+        setFps(Math.round((frameCount.current * 1000) / (now - lastTime.current)))
+        frameCount.current = 0
+        lastTime.current = now
+      }
+      frameId = requestAnimationFrame(update)
+    }
+    frameId = requestAnimationFrame(update)
+    return () => cancelAnimationFrame(frameId)
+  }, [])
+
+  return (
+    <div className="fps-counter">
+      {fps} FPS
+    </div>
+  )
+}
 
 export function startLoop(callback) {
   let frameId = 0
@@ -68,6 +96,7 @@ export function usePointer(canvasRef) {
 export function DemoShell({ title, hint, error, children, extra }) {
   return (
     <div className="demo">
+      <FPSStats />
       <div className="demo-info">
         <h2>{title}</h2>
         {hint && <p className="demo-caption">{hint}</p>}

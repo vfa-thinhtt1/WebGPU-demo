@@ -21,7 +21,7 @@ main {
   overflow: hidden;
 }
 
-/* Tab bar floats at the top centre */
+/* Tab bar floats at the top centre - now supports two lines */
 .demo-tabs {
   position: absolute;
   top: 16px;
@@ -29,14 +29,22 @@ main {
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  padding: 6px 10px;
+  border-radius: 16px;
+  padding: 8px 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.tabs-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
 }
 
 /* Tabs */
@@ -92,6 +100,26 @@ main {
   align-items: flex-start;
   gap: 4px;
   pointer-events: none;
+}
+
+/* FPS Counter */
+.fps-counter {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: #4ade80; /* Mint green */
 }
 
 .demo-info>h2 {
