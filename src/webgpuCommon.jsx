@@ -68,8 +68,10 @@ export function usePointer(canvasRef) {
 export function DemoShell({ title, hint, error, children, extra }) {
   return (
     <div className="demo">
-      <h2>{title}</h2>
-      {hint && <p className="demo-caption">{hint}</p>}
+      <div className="demo-info">
+        <h2>{title}</h2>
+        {hint && <p className="demo-caption">{hint}</p>}
+      </div>
       {extra}
       {error && <p className="error">{error}</p>}
       {children}
