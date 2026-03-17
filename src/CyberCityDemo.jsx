@@ -82,58 +82,73 @@ export default function CyberCityDemo() {
               let aspect = u.w / u.h;
               let p = (uv - 0.5) * vec2f(aspect, 1.0);
               
-              // Camera moving through city
-              let speed = 2.0;
-              let ro = vec3f(0.0, 1.2, u.time * speed);
-              let lookAt = ro + vec3f(sin(u.mx * 2.0 - 1.0), (0.5 - u.my), 1.0);
-              
+              // Camera
+              let speed = 2.5;
+              let ro = vec3f(0.0, 3.5, u.time * speed);
+              let lookAt = ro + vec3f(sin(u.mx * 3.0 - 1.5) * 1.5, (0.3 - u.my) * 2.0, 1.0);
               let fwd = normalize(lookAt - ro);
               let right = normalize(cross(vec3f(0,1,0), fwd));
               let up = cross(fwd, right);
               let rd = normalize(fwd + p.x * right + p.y * up);
 
-              // Raymarching
+              // 1. Precise Raymarching
               var t = 0.01;
               var hit = false;
               var res = vec2f(0.0);
-              for(var i=0; i<80; i++) {
+              for(var i=0; i<120; i++) {
                 res = map(ro + rd * t);
-                if(res.x < 0.001) { hit = true; break; }
-                t += res.x * 0.5;
-                if(t > 40.0) { break; }
+                if(res.x < 0.0005) { hit = true; break; }
+                t += res.x * 0.5; // Conservative step for stability
+                if(t > 60.0) { break; }
               }
 
-              // Background
-              var col = mix(vec3f(0.0, 0.0, 0.05), vec3f(0.1, 0.0, 0.2), exp(-abs(p.y)*2.0));
+              // 2. High-quality background
+              var col = mix(vec3f(0.01, 0.0, 0.03), vec3f(0.04, 0.0, 0.1), exp(-abs(p.y)*2.0));
               
               if(hit) {
                 let pos = ro + rd * t;
                 let id_h = res.y;
+                let h_val = id_h * 4.0 + 1.0;
                 
-                // Colors - building side
-                col = vec3f(0.02, 0.02, 0.05);
+                // 3. Proper Normals for stable lighting
+                let e = vec2f(0.002, 0.0);
+                let nor = normalize(vec3f(
+                    map(pos + e.xyy).x - map(pos - e.xyy).x,
+                    map(pos + e.yxy).x - map(pos - e.yxy).x,
+                    map(pos + e.yyx).x - map(pos - e.yyx).x
+                ));
+
+                // Building base material
+                col = vec3f(0.005, 0.005, 0.01);
+                let diff = max(dot(nor, normalize(vec3f(1, 2, -1))), 0.0);
+                col += diff * 0.02;
+
+                // 4. Anti-aliased Windows (Smoothstep instead of Step)
+                let w_freq = vec2f(4.0, 3.0);
+                let w_uv = vec2f(pos.x + pos.z, pos.y) * w_freq;
+                let w_f = abs(fract(w_uv) - 0.5);
+                let w_mask = smoothstep(0.4, 0.35, w_f.x) * smoothstep(0.45, 0.4, w_f.y);
                 
-                // Windows patterns
-                let win = step(0.1, fract(pos.y * 3.0)) * step(0.1, fract(pos.x * 3.0 + pos.z * 3.0));
-                let win_active = step(0.7, hash21(vec2f(floor(pos.y * 3.0), id_h)));
-                
-                if(win > 0.5 && win_active > 0.5) {
-                   col += 0.5 + 0.5 * cos(6.28318 * (vec3f(0.0, 0.33, 0.67) + id_h));
+                let win_id = hash21(floor(w_uv) + id_h);
+                if(w_mask > 0.1 && win_id > 0.6) {
+                   let glow = 0.5 + 0.5 * cos(6.28318 * (vec3f(0.0, 0.1, 0.2) + id_h * 5.0));
+                   col += glow * w_mask * 1.2;
                 }
                 
-                // Top lights
-                if(pos.y > (id_h * 4.0 + 0.9)) {
-                   col += vec3f(1.0, 0.0, 0.2);
+                // Stable Beacons
+                if(pos.y > (h_val - 0.25)) {
+                   let b_pulse = smoothstep(0.5, 0.6, sin(u.time * 4.0 + id_h * 20.0));
+                   col = mix(col, vec3f(1.0, 0.0, 0.2), b_pulse * 0.8);
                 }
 
-                // Haze
-                col = mix(col, vec3f(0.0, 0.0, 0.05), smoothstep(10.0, 40.0, t));
+                // 5. Clean Depth Haze
+                col = mix(col, vec3f(0.01, 0.0, 0.03), smoothstep(20.0, 60.0, t));
               }
 
-              // Atmospheric bloom/glow
-              col += vec3f(0.5, 0.2, 0.8) * exp(-abs(p.y) * 5.0) * 0.1;
+              // Horizon Bloom
+              col += vec3f(0.4, 0.1, 0.8) * exp(-abs(p.y + 0.25) * 6.0) * 0.2;
 
-              col = pow(col, vec3f(0.4545));
+              col = pow(col, vec3f(0.4545)); // Gamma Correct
               return vec4f(col, 1.0);
             }
             `,

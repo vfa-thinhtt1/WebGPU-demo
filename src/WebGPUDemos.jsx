@@ -27,7 +27,7 @@ const demos = [
   { key: 'blobs', label: 'Bio-Blobs', component: BioBlobsDemo },
   { key: 'glitch', label: 'Glitch Grid', component: GlitchGridDemo },
   { key: 'starfield', label: 'Starfield Warp', component: StarfieldWarpDemo },
-  { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
+  // { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
 ]
 
 function DemoSelector() {
