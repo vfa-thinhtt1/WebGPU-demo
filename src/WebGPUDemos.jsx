@@ -7,7 +7,7 @@ import AuroraDemo from './AuroraDemo.jsx'
 import NebulaFlowDemo from './NebulaFlowDemo.jsx'
 import ParticleSwarmDemo from './ParticleSwarmDemo.jsx'
 import NeonGridDemo from './NeonGridDemo.jsx'
-import CrystalLatticeDemo from './CrystalLatticeDemo.jsx'
+// import CrystalLatticeDemo from './CrystalLatticeDemo.jsx'
 import QuantumFieldDemo from './QuantumFieldDemo.jsx'
 import BioBlobsDemo from './BioBlobsDemo.jsx'
 import GlitchGridDemo from './GlitchGridDemo.jsx'
@@ -22,12 +22,12 @@ const demos = [
   { key: 'nebula', label: 'Nebula Flow', component: NebulaFlowDemo },
   { key: 'particles', label: 'Million Particles', component: ParticleSwarmDemo },
   { key: 'neongrid', label: 'Neon Grid', component: NeonGridDemo },
-  { key: 'crystals', label: 'Crystal Lattice', component: CrystalLatticeDemo },
+  // { key: 'crystals', label: 'Crystal Lattice', component: CrystalLatticeDemo },
   { key: 'quantum', label: 'Quantum Field', component: QuantumFieldDemo },
   { key: 'blobs', label: 'Bio-Blobs', component: BioBlobsDemo },
   { key: 'glitch', label: 'Glitch Grid', component: GlitchGridDemo },
   { key: 'starfield', label: 'Starfield Warp', component: StarfieldWarpDemo },
-  // { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
+  { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
 ]
 
 function DemoSelector() {
