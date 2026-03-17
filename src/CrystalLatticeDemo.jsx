@@ -122,12 +122,12 @@ export default function CrystalLatticeDemo() {
             const r = 0.3 + Math.random() * 0.7
             const phi = Math.acos(2.0 * Math.random() - 1.0)
             const theta = 2.0 * Math.PI * Math.random()
-            
+
             initialData[i * 8 + 0] = r * Math.sin(phi) * Math.cos(theta)
             initialData[i * 8 + 1] = r * Math.sin(phi) * Math.sin(theta)
             initialData[i * 8 + 2] = r * Math.cos(phi)
             initialData[i * 8 + 3] = 0 // padding
-            
+
             initialData[i * 8 + 4] = Math.random() * 6.28 // rot
             initialData[i * 8 + 5] = Math.random() // hue
             initialData[i * 8 + 6] = 0.3 + Math.random() * 1.5 // scale

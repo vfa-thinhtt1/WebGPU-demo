@@ -13,6 +13,11 @@ import BioBlobsDemo from './BioBlobsDemo.jsx'
 import GlitchGridDemo from './GlitchGridDemo.jsx'
 import StarfieldWarpDemo from './StarfieldWarpDemo.jsx'
 import CyberCityDemo from './CyberCityDemo.jsx'
+import GalaxyWhirlDemo from './GalaxyWhirlDemo.jsx'
+import CosmicSingularityDemo from './CosmicSingularityDemo.jsx'
+import PrismaticCrystalDemo from './PrismaticCrystalDemo.jsx'
+import NeuralSynapseDemo from './NeuralSynapseDemo.jsx'
+import LiquidChromeDemo from './LiquidChromeDemo.jsx'
 
 const demos = [
   { key: 'tunnel', label: 'Fractal Tunnel', component: FractalTunnelDemo },
@@ -28,6 +33,11 @@ const demos = [
   { key: 'glitch', label: 'Glitch Grid', component: GlitchGridDemo },
   { key: 'starfield', label: 'Starfield Warp', component: StarfieldWarpDemo },
   { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
+  { key: 'whirl', label: 'Galaxy Whirl', component: GalaxyWhirlDemo },
+  // { key: 'cosmic', label: 'Cosmic Singularity', component: CosmicSingularityDemo },
+  { key: 'crystal', label: 'Prismatic Crystal', component: PrismaticCrystalDemo },
+  { key: 'synapse', label: 'Neural Synapse', component: NeuralSynapseDemo },
+  { key: 'chrome', label: 'Liquid Chrome', component: LiquidChromeDemo },
 ]
 
 function DemoSelector() {
@@ -43,7 +53,7 @@ function DemoSelector() {
     <main id="center">
       <div className="demo-tabs">
         <div className="tabs-row">
-          {demos.slice(0, 7).map((d) => (
+          {demos.slice(0, 10).map((d) => (
             <button
               key={d.key}
               className={d.key === activeKey ? 'tab active' : 'tab'}

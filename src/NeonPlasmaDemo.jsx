@@ -8,25 +8,25 @@ export default function NeonPlasmaDemo() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    let stop = () => {}
-    let cleanup = () => {}
+    let stop = () => { }
+    let cleanup = () => { }
 
-    ;(async () => {
-      try {
-        const canvas = canvasRef.current
-        if (!canvas) return
+      ; (async () => {
+        try {
+          const canvas = canvasRef.current
+          if (!canvas) return
 
-        const { device, context, format } = await initWebGPU(canvas)
+          const { device, context, format } = await initWebGPU(canvas)
 
-        const uniformBuffer = device.createBuffer({
-          size: 4 * 8,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
+          const uniformBuffer = device.createBuffer({
+            size: 4 * 8,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          })
 
-        const pipeline = fullscreenPipeline({
-          device,
-          format,
-          fragmentCode: /* wgsl */ `
+          const pipeline = fullscreenPipeline({
+            device,
+            format,
+            fragmentCode: /* wgsl */ `
 
 struct Uniforms {
   time:f32,
@@ -77,71 +77,71 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
   return vec4f(col*(1.0+glow*1.5),1.0)
 }
           `,
-        })
-
-        const bindGroup = device.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
-        })
-
-        const onResize = () =>
-          configureCanvasSize(canvas, context, device, format)
-
-        onResize()
-        window.addEventListener("resize", onResize)
-
-        cleanup = () => window.removeEventListener("resize", onResize)
-
-        stop = startLoop((time) => {
-          const p = pointerRef.current
-
-          const { width, height } = configureCanvasSize(
-            canvas,
-            context,
-            device,
-            format
-          )
-
-          device.queue.writeBuffer(
-            uniformBuffer,
-            0,
-            new Float32Array([
-              time,
-              width,
-              height,
-              p.x,
-              1 - p.y,
-              p.dx,
-              -p.dy,
-              p.down ? 1 : 0,
-            ])
-          )
-
-          const encoder = device.createCommandEncoder()
-
-          const pass = encoder.beginRenderPass({
-            colorAttachments: [
-              {
-                view: context.getCurrentTexture().createView(),
-                clearValue: { r: 0, g: 0, b: 0, a: 1 },
-                loadOp: "clear",
-                storeOp: "store",
-              },
-            ],
           })
 
-          pass.setPipeline(pipeline)
-          pass.setBindGroup(0, bindGroup)
-          pass.draw(6)
-          pass.end()
+          const bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+          })
 
-          device.queue.submit([encoder.finish()])
-        })
-      } catch (e) {
-        console.error(e)
-        setError(e?.message ?? String(e))
-      }
-    })()
+          const onResize = () =>
+            configureCanvasSize(canvas, context, device, format)
+
+          onResize()
+          window.addEventListener("resize", onResize)
+
+          cleanup = () => window.removeEventListener("resize", onResize)
+
+          stop = startLoop((time) => {
+            const p = pointerRef.current
+
+            const { width, height } = configureCanvasSize(
+              canvas,
+              context,
+              device,
+              format
+            )
+
+            device.queue.writeBuffer(
+              uniformBuffer,
+              0,
+              new Float32Array([
+                time,
+                width,
+                height,
+                p.x,
+                1 - p.y,
+                p.dx,
+                -p.dy,
+                p.down ? 1 : 0,
+              ])
+            )
+
+            const encoder = device.createCommandEncoder()
+
+            const pass = encoder.beginRenderPass({
+              colorAttachments: [
+                {
+                  view: context.getCurrentTexture().createView(),
+                  clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                  loadOp: "clear",
+                  storeOp: "store",
+                },
+              ],
+            })
+
+            pass.setPipeline(pipeline)
+            pass.setBindGroup(0, bindGroup)
+            pass.draw(6)
+            pass.end()
+
+            device.queue.submit([encoder.finish()])
+          })
+        } catch (e) {
+          console.error(e)
+          setError(e?.message ?? String(e))
+        }
+      })()
 
     return () => {
       stop()

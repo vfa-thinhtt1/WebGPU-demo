@@ -9,8 +9,8 @@ import {
 } from "./webgpuCommon.jsx"
 
 export default function GalaxyWarpDemo() {
-  const canvasRef   = useRef(null)
-  const pointerRef  = usePointer(canvasRef)
+  const canvasRef = useRef(null)
+  const pointerRef = usePointer(canvasRef)
   const { gpuState, error: gpuError } = useWebGPU()
   const [error, setError] = useState(null)
 
@@ -22,26 +22,26 @@ export default function GalaxyWarpDemo() {
     if (!canvas) return
 
     let cancelled = false
-    let stop    = () => {}
+    let stop = () => { }
     let context = null
 
-    ;(async () => {
-      try {
-        // Each demo configures the canvas context on the shared device
-        context = canvas.getContext('webgpu')
-        context.configure({ device, format, alphaMode: 'premultiplied' })
+      ; (async () => {
+        try {
+          // Each demo configures the canvas context on the shared device
+          context = canvas.getContext('webgpu')
+          context.configure({ device, format, alphaMode: 'premultiplied' })
 
-        if (cancelled) { context.unconfigure(); return }
+          if (cancelled) { context.unconfigure(); return }
 
-        const uniformBuffer = device.createBuffer({
-          size: 4 * 8,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
+          const uniformBuffer = device.createBuffer({
+            size: 4 * 8,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          })
 
-        const pipeline = fullscreenPipeline({
-          device,
-          format,
-          fragmentCode: /* wgsl */ `
+          const pipeline = fullscreenPipeline({
+            device,
+            format,
+            fragmentCode: /* wgsl */ `
 
 struct U {
   time : f32,
@@ -171,58 +171,58 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
   return vec4f(col, 1.0);
 }
 `,
-        })
-
-        const bindGroup = device.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
-        })
-
-        const onResize = () => configureCanvasSize(canvas, context, device, format)
-        onResize()
-        window.addEventListener("resize", onResize)
-
-        stop = startLoop((time) => {
-          const ptr = pointerRef.current
-          const { width, height } = configureCanvasSize(canvas, context, device, format)
-
-          device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-            time, width, height,
-            ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
-          ]))
-
-          const encoder = device.createCommandEncoder()
-          const pass = encoder.beginRenderPass({
-            colorAttachments: [{
-              view: context.getCurrentTexture().createView(),
-              clearValue: { r: 0, g: 0, b: 0, a: 1 },
-              loadOp: "clear", storeOp: "store",
-            }],
           })
-          pass.setPipeline(pipeline)
-          pass.setBindGroup(0, bindGroup)
-          pass.draw(6)
-          pass.end()
-          device.queue.submit([encoder.finish()])
-        })
 
-        // Store the removeEventListener so cleanup can call it
-        const prevOnResize = onResize
-        const origStop = stop
-        stop = () => {
-          origStop()
-          window.removeEventListener("resize", prevOnResize)
+          const bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+          })
+
+          const onResize = () => configureCanvasSize(canvas, context, device, format)
+          onResize()
+          window.addEventListener("resize", onResize)
+
+          stop = startLoop((time) => {
+            const ptr = pointerRef.current
+            const { width, height } = configureCanvasSize(canvas, context, device, format)
+
+            device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
+              time, width, height,
+              ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
+            ]))
+
+            const encoder = device.createCommandEncoder()
+            const pass = encoder.beginRenderPass({
+              colorAttachments: [{
+                view: context.getCurrentTexture().createView(),
+                clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                loadOp: "clear", storeOp: "store",
+              }],
+            })
+            pass.setPipeline(pipeline)
+            pass.setBindGroup(0, bindGroup)
+            pass.draw(6)
+            pass.end()
+            device.queue.submit([encoder.finish()])
+          })
+
+          // Store the removeEventListener so cleanup can call it
+          const prevOnResize = onResize
+          const origStop = stop
+          stop = () => {
+            origStop()
+            window.removeEventListener("resize", prevOnResize)
+          }
+        } catch (e) {
+          console.error(e)
+          setError(e?.message ?? String(e))
         }
-      } catch (e) {
-        console.error(e)
-        setError(e?.message ?? String(e))
-      }
-    })()
+      })()
 
     return () => {
       cancelled = true
       stop()
-      try { context?.unconfigure() } catch (_) {}
+      try { context?.unconfigure() } catch (_) { }
     }
   }, [gpuState, pointerRef])
 
@@ -232,7 +232,7 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
       hint="Move mouse to shift the wormhole. Watch the accretion disk spin and stars bend."
       error={error ?? gpuError}
     >
-      <canvas ref={canvasRef} width={1920} height={1080} style={{width:'100%',height:'100%',display:'block'}} className="demo-canvas" />
+      <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />
     </DemoShell>
   )
 }
