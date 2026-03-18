@@ -31,8 +31,6 @@ import ElectricCoreDemo from './ElectricCoreDemo.jsx'
 import ElectricGridDemo from './ElectricGridDemo.jsx'
 import LiquidVortexDemo from './LiquidVortexDemo.jsx'
 import NeonTunnelDemo from './NeonTunnelDemo.jsx'
-import WarpedKaleidoscopeDemo from './WarpedKaleidoscopeDemo.jsx'
-import ElectricNeuralWebDemo from './ElectricNeuralWebDemo.jsx'
 
 const demos = [
   { key: 'tunnel', label: 'Fractal Tunnel', component: FractalTunnelDemo },
@@ -66,8 +64,6 @@ const demos = [
   { key: 'electricgrid', label: 'Electric Grid', component: ElectricGridDemo },
   { key: 'liquidvortex', label: 'Liquid Vortex', component: LiquidVortexDemo },
   { key: 'neontunnel', label: 'Neon Tunnel', component: NeonTunnelDemo },
-  { key: 'warpedkaleidoscope', label: 'Warped Kaleidoscope', component: WarpedKaleidoscopeDemo },
-  { key: 'electricneuralweb', label: 'Electric Neural Web', component: ElectricNeuralWebDemo },
 ]
 
 function DemoSelector() {
