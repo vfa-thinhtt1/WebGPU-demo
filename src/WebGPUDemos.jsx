@@ -14,10 +14,25 @@ import GlitchGridDemo from './GlitchGridDemo.jsx'
 import StarfieldWarpDemo from './StarfieldWarpDemo.jsx'
 import CyberCityDemo from './CyberCityDemo.jsx'
 import GalaxyWhirlDemo from './GalaxyWhirlDemo.jsx'
-import CosmicSingularityDemo from './CosmicSingularityDemo.jsx'
 import PrismaticCrystalDemo from './PrismaticCrystalDemo.jsx'
 import NeuralSynapseDemo from './NeuralSynapseDemo.jsx'
 import LiquidChromeDemo from './LiquidChromeDemo.jsx'
+import BlackHoleWarpDemo from './BlackHoleWarpDemo.jsx'
+import NeuralPulseDemo from './NeuralPulseDemo.jsx'
+import DigitalRainDemo from './DigitalRainDemo.jsx'
+import GlassCausticsDemo from './GlassCausticsDemo.jsx'
+import AuroraFlowDemo from './AuroraFlowDemo.jsx'
+import PlasmaVortexDemo from './PlasmaVortexDemo.jsx'
+import GlassWavesDemo from './GlassWavesDemo.jsx'
+import CosmicSilkDemo from './CosmicSilkDemo.jsx'
+import BioGrowthDemo from './BioGrowthDemo.jsx'
+import MirrorTunnelDemo from './MirrorTunnelDemo.jsx'
+import ElectricCoreDemo from './ElectricCoreDemo.jsx'
+import ElectricGridDemo from './ElectricGridDemo.jsx'
+import LiquidVortexDemo from './LiquidVortexDemo.jsx'
+import NeonTunnelDemo from './NeonTunnelDemo.jsx'
+import WarpedKaleidoscopeDemo from './WarpedKaleidoscopeDemo.jsx'
+import ElectricNeuralWebDemo from './ElectricNeuralWebDemo.jsx'
 
 const demos = [
   { key: 'tunnel', label: 'Fractal Tunnel', component: FractalTunnelDemo },
@@ -34,10 +49,25 @@ const demos = [
   { key: 'starfield', label: 'Starfield Warp', component: StarfieldWarpDemo },
   { key: 'cybercity', label: 'Cyber City', component: CyberCityDemo },
   { key: 'whirl', label: 'Galaxy Whirl', component: GalaxyWhirlDemo },
-  // { key: 'cosmic', label: 'Cosmic Singularity', component: CosmicSingularityDemo },
   { key: 'crystal', label: 'Prismatic Crystal', component: PrismaticCrystalDemo },
   { key: 'synapse', label: 'Neural Synapse', component: NeuralSynapseDemo },
   { key: 'chrome', label: 'Liquid Chrome', component: LiquidChromeDemo },
+  { key: 'blackhole', label: 'Black Hole Warp', component: BlackHoleWarpDemo },
+  { key: 'pulse', label: 'Neural Pulse', component: NeuralPulseDemo },
+  { key: 'digitalrain', label: 'Digital Rain', component: DigitalRainDemo },
+  { key: 'glasscaustics', label: 'Glass Caustics', component: GlassCausticsDemo },
+  { key: 'auroraflow', label: 'Aurora Flow', component: AuroraFlowDemo },
+  { key: 'vortex', label: 'Plasma Vortex', component: PlasmaVortexDemo },
+  { key: 'glasswaves', label: 'Glass Waves', component: GlassWavesDemo },
+  { key: 'cosmicsilk', label: 'Cosmic Silk', component: CosmicSilkDemo },
+  { key: 'biogrowth', label: 'Bio Growth', component: BioGrowthDemo },
+  { key: 'mirrortunnel', label: 'Mirror Tunnel', component: MirrorTunnelDemo },
+  { key: 'electriccore', label: 'Electric Core', component: ElectricCoreDemo },
+  { key: 'electricgrid', label: 'Electric Grid', component: ElectricGridDemo },
+  { key: 'liquidvortex', label: 'Liquid Vortex', component: LiquidVortexDemo },
+  { key: 'neontunnel', label: 'Neon Tunnel', component: NeonTunnelDemo },
+  { key: 'warpedkaleidoscope', label: 'Warped Kaleidoscope', component: WarpedKaleidoscopeDemo },
+  { key: 'electricneuralweb', label: 'Electric Neural Web', component: ElectricNeuralWebDemo },
 ]
 
 function DemoSelector() {
@@ -52,30 +82,20 @@ function DemoSelector() {
   return (
     <main id="center">
       <div className="demo-tabs">
-        <div className="tabs-row">
-          {demos.slice(0, 10).map((d) => (
-            <button
-              key={d.key}
-              className={d.key === activeKey ? 'tab active' : 'tab'}
-              type="button"
-              onClick={() => setActiveKey(d.key)}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-        <div className="tabs-row">
-          {demos.slice(7).map((d) => (
-            <button
-              key={d.key}
-              className={d.key === activeKey ? 'tab active' : 'tab'}
-              type="button"
-              onClick={() => setActiveKey(d.key)}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
+        {Array.from({ length: Math.ceil(demos.length / 10) }).map((_, rowIndex) => (
+          <div key={rowIndex} className="tabs-row">
+            {demos.slice(rowIndex * 10, (rowIndex + 1) * 10).map((d) => (
+              <button
+                key={d.key}
+                className={d.key === activeKey ? 'tab active' : 'tab'}
+                type="button"
+                onClick={() => setActiveKey(d.key)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
 
       <Active />

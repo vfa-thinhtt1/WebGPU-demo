@@ -42,9 +42,10 @@ main {
 }
 
 .tabs-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
   gap: 6px;
-  justify-content: center;
+  width: 100%;
 }
 
 /* Tabs */
