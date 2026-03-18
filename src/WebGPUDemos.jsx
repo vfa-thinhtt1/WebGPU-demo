@@ -7,7 +7,6 @@ import AuroraDemo from './AuroraDemo.jsx'
 import NebulaFlowDemo from './NebulaFlowDemo.jsx'
 import ParticleSwarmDemo from './ParticleSwarmDemo.jsx'
 import NeonGridDemo from './NeonGridDemo.jsx'
-// import CrystalLatticeDemo from './CrystalLatticeDemo.jsx'
 import QuantumFieldDemo from './QuantumFieldDemo.jsx'
 import BioBlobsDemo from './BioBlobsDemo.jsx'
 import GlitchGridDemo from './GlitchGridDemo.jsx'
@@ -31,6 +30,16 @@ import ElectricCoreDemo from './ElectricCoreDemo.jsx'
 import ElectricGridDemo from './ElectricGridDemo.jsx'
 import LiquidVortexDemo from './LiquidVortexDemo.jsx'
 import NeonTunnelDemo from './NeonTunnelDemo.jsx'
+import DimensionalRiftDemo from './DimensionalRiftDemo.jsx'
+import LiquidGoldDemo from './LiquidGoldDemo.jsx'
+import AethericRibbonsDemo from './AethericRibbonsDemo.jsx'
+import CyberMatrixDemo from './CyberMatrixDemo.jsx'
+import MoltenPrismDemo from './MoltenPrismDemo.jsx'
+import StellarNurseryDemo from './StellarNurseryDemo.jsx'
+import TechnoGrowthDemo from './TechnoGrowthDemo.jsx'
+import ShatteredDimensionDemo from './ShatteredDimensionDemo.jsx'
+import SolarFlareDemo from './SolarFlareDemo.jsx'
+import QuantumWeaverDemo from './QuantumWeaverDemo.jsx'
 
 const demos = [
   { key: 'tunnel', label: 'Fractal Tunnel', component: FractalTunnelDemo },
@@ -40,7 +49,6 @@ const demos = [
   { key: 'nebula', label: 'Nebula Flow', component: NebulaFlowDemo },
   { key: 'particles', label: 'Million Particles', component: ParticleSwarmDemo },
   { key: 'neongrid', label: 'Neon Grid', component: NeonGridDemo },
-  // { key: 'crystals', label: 'Crystal Lattice', component: CrystalLatticeDemo },
   { key: 'quantum', label: 'Quantum Field', component: QuantumFieldDemo },
   { key: 'blobs', label: 'Bio-Blobs', component: BioBlobsDemo },
   { key: 'glitch', label: 'Glitch Grid', component: GlitchGridDemo },
@@ -64,6 +72,16 @@ const demos = [
   { key: 'electricgrid', label: 'Electric Grid', component: ElectricGridDemo },
   { key: 'liquidvortex', label: 'Liquid Vortex', component: LiquidVortexDemo },
   { key: 'neontunnel', label: 'Neon Tunnel', component: NeonTunnelDemo },
+  { key: 'rift', label: 'Dimensional Rift', component: DimensionalRiftDemo },
+  { key: 'gold', label: 'Liquid Gold', component: LiquidGoldDemo },
+  { key: 'aetheric', label: 'Aetheric Ribbons', component: AethericRibbonsDemo },
+  { key: 'cybermatrix', label: 'Cyber Matrix', component: CyberMatrixDemo },
+  { key: 'prism', label: 'Molten Prism', component: MoltenPrismDemo },
+  { key: 'nursery', label: 'Stellar Nursery', component: StellarNurseryDemo },
+  { key: 'growth', label: 'Techno Growth', component: TechnoGrowthDemo },
+  { key: 'shattered', label: 'Shattered Dimension', component: ShatteredDimensionDemo },
+  { key: 'solarflare', label: 'Solar Flare', component: SolarFlareDemo },
+  { key: 'quantumweaver', label: 'Quantum Weaver', component: QuantumWeaverDemo },
 ]
 
 function DemoSelector() {

@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function StarlightSwarmDemo() {
+export default function CosmicSwirlVortexDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -26,8 +26,8 @@ export default function StarlightSwarmDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
@@ -51,51 +51,63 @@ struct U {
 };
 @group(0) @binding(0) var<uniform> u: U;
 
-// pseudo-random based on position
-fn hash2(p: vec2f) -> f32 {
-  let h = sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453;
-  return fract(h);
+// simple pseudo-random
+fn hash(p: vec2f) -> f32 {
+  return fract(sin(dot(p, vec2f(127.1,311.7))) * 43758.5453);
 }
 
-// star positions and trails
-fn starField(uv: vec2f, t: f32) -> f32 {
-  var intensity = 0.0;
-  for(var i = 0; i < 50; i++){
-    let p = vec2f(hash2(vec2f(f32(i), 0.0)), hash2(vec2f(f32(i),1.0))) - 0.5;
-    let speed = 0.2 + hash2(vec2f(f32(i),2.0)) * 0.5;
-    let pos = p + vec2f(cos(t*speed+i)*0.3, sin(t*speed+i)*0.3);
-    let d = length(uv - pos);
-    intensity += 0.02 / (d*d + 0.001);
+// fractional brownian motion
+fn fbm(p: vec2f) -> f32 {
+  var v = 0.0;
+  var a = 0.5;
+  var pp = p;
+  for(var i=0;i<5;i++){
+    v += a*hash(pp);
+    pp *= 2.3;
+    a *= 0.5;
   }
-  return intensity;
+  return v;
 }
 
-// mouse interaction
-fn mouseEffect(uv: vec2f, mouse: vec2f, down: f32) -> f32 {
-  let dist = length(uv - mouse);
-  return exp(-dist*30.0)*(1.0 + down*2.0);
+// color map for vortex
+fn swirlColor(angle: f32) -> vec3f {
+  let r = 0.5 + 0.5*sin(angle*6.2831);
+  let g = 0.5 + 0.5*sin(angle*6.2831 + 2.094);
+  let b = 0.5 + 0.5*sin(angle*6.2831 + 4.188);
+  return vec3f(r,g,b);
 }
 
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-  let aspect = u.w / u.h
-  let t = u.time
-  let uvA = (uv - 0.5) * vec2f(aspect,1.0)
+  let t = u.time;
+  let mouse = vec2f(u.mx, u.my);
 
-  let stars = starField(uvA, t)
+  // center coordinates
+  let c = vec2f(0.5,0.5);
+  let dir = uv - c;
+  let dist = length(dir);
+  let angle = atan2(dir.y, dir.x);
 
-  let mouse = vec2f(u.mx, u.my) * vec2f(aspect,1.0) - vec2f(0.5*aspect,0.5)
-  let effect = mouseEffect(uvA, mouse, u.down)
+  // swirling effect
+  let swirl = angle + t*0.5 + fbm(uv*5.0)*2.0;
+  let radius = dist + fbm(uv*10.0 + t*0.2)*0.05;
 
-  let val = stars + effect
+  var col = vec3f(0.0,0.0,0.05); // dark space background
+  col += swirlColor(swirl) * exp(-radius*8.0); // glowing vortex arms
 
-  // glowing star color
-  var col = vec3f(val, val*0.6, val*1.0)
+  // particles near mouse
+  let toMouse = uv - mouse;
+  let mdist = length(toMouse);
+  col += vec3f(1.0,0.6,0.2) * exp(-mdist*30.0); // bright orange highlight
 
-  col = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2))
-  return vec4f(col,1.0)
+  // subtle plasma noise
+  col += vec3f(fbm(uv*50.0 + t*0.1))*0.03;
+
+  // gamma
+  col = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2));
+  return vec4f(col,1.0);
 }
-          `,
+`,
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -136,7 +148,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -152,8 +163,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Starlight Swarm"
-            hint="Move mouse to attract stars. Click to create star bursts."
+            title="Cosmic Swirl Vortex"
+            hint="Move your mouse to highlight the swirling vortex."
             error={error ?? gpuError}
         >
             <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />

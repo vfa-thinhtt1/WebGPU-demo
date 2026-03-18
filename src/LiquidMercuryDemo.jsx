@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function WarpedKaleidoscopeDemo() {
+export default function LiquidMercuryDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -16,6 +16,7 @@ export default function WarpedKaleidoscopeDemo() {
 
     useEffect(() => {
         if (!gpuState) return
+
         const { device, format } = gpuState
         const canvas = canvasRef.current
         if (!canvas) return
@@ -28,6 +29,7 @@ export default function WarpedKaleidoscopeDemo() {
                 try {
                     context = canvas.getContext("webgpu")
                     context.configure({ device, format, alphaMode: "premultiplied" })
+
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
@@ -40,54 +42,69 @@ export default function WarpedKaleidoscopeDemo() {
                         format,
                         fragmentCode: /* wgsl */ `
 struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
+  time: f32,
+  w: f32,
+  h: f32,
+  mx: f32,
+  my: f32,
+  mdx: f32,
+  mdy: f32,
+  down: f32,
 };
 @group(0) @binding(0) var<uniform> u: U;
 
-// simple kaleidoscope symmetry
-fn kaleido(uv: vec2f, segments: f32) -> vec2f {
-  let angle = atan2(uv.y, uv.x)
-  let radius = length(uv)
-  let segAngle = 3.14159 * 2.0 / segments
-  let newAngle = fract(angle/segAngle)*segAngle
-  return vec2f(cos(newAngle)*radius, sin(newAngle)*radius)
+// ── Noise function ──────────────────────────────────────
+fn hash(p: vec2f) -> f32 {
+  var q = fract(p * vec2f(127.1, 311.7));
+  q += dot(q, q + 19.19);
+  return fract(q.x * q.y);
 }
 
-// color mapping
-fn colorMap(pos: vec2f, t: f32) -> vec3f {
-  return vec3f(
-    0.5 + 0.5*cos(t + pos.x*6.0),
-    0.5 + 0.5*sin(t + pos.y*6.0),
-    0.5 + 0.5*cos(t + pos.x*3.0 + pos.y*2.0)
-  )
+fn fbm(p: vec2f) -> f32 {
+  var v = 0.0;
+  var a = 0.5;
+  var pp = p;
+  for(var i=0;i<5;i++){
+    v += a * hash(pp);
+    pp *= 2.2;
+    a *= 0.5;
+  }
+  return v;
 }
 
+// ── Liquid mercury shading ─────────────────────────────
+fn mercuryColor(dist: f32, wave: f32) -> vec3f {
+  let base = vec3f(0.6,0.6,0.65)
+  let highlight = vec3f(1.0,1.0,1.05)
+  return mix(base, highlight, smoothstep(0.0,0.3,1.0-dist+wave*0.3))
+}
+
+// ── Main ───────────────────────────────────────────────
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
   let t = u.time
-  let uvA = uv - 0.5
+  let mouse = vec2f(u.mx, u.my)
+  let mDist = length(uv - mouse)
+  let ripple = exp(-mDist*mDist*30.0)*(0.5 + 0.5*sin(t*8.0 - mDist*20.0))
+  let mEffect = ripple*(u.down*1.0 + 0.2)
 
-  // mouse-driven warp
-  let mouse = vec2f(u.mx, u.my) - vec2f(0.5, 0.5)
-  let warp = uvA + mouse*0.5
+  // Flowing liquid waves
+  let pos = uv * vec2f(3.0,1.5) + vec2f(fbm(uv*3.0+t), fbm(uv*5.0-t))
+  let wave = fbm(pos + mEffect*2.0)
 
-  // kaleidoscope symmetry
-  let k = kaleido(warp, 6.0 + sin(t*0.5)*3.0)
+  let distToCenter = length(uv - vec2f(0.5,0.5))
+  var col = mercuryColor(distToCenter, wave)
 
-  let col = colorMap(k, t)
+  // subtle edge glow
+  col += 0.1 * vec3f(1.0,1.0,1.0) * smoothstep(0.48,0.5,distToCenter)
 
-  // gamma correction
-  let finalCol = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2))
-  return vec4f(finalCol, 1.0)
+  // tone map & gamma
+  col = col / (col + vec3f(1.0)) * 1.5
+  col = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2))
+
+  return vec4f(col, 1.0)
 }
-          `,
+`,
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -128,7 +145,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -144,8 +160,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Warped Kaleidoscope"
-            hint="Move mouse to warp symmetry. Click to pulse effect."
+            title="Liquid Mercury Stream"
+            hint="Move mouse to create ripples in the liquid metal. Click to intensify the flow."
             error={error ?? gpuError}
         >
             <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />

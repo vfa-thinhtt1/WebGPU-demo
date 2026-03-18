@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function CrystalShardsDemo() {
+export default function ElectricJellyDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -26,12 +26,12 @@ export default function CrystalShardsDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
-                        size: 4 * 8,
+                        size: 32,
                         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     })
 
@@ -39,68 +39,55 @@ export default function CrystalShardsDemo() {
                         device,
                         format,
                         fragmentCode: /* wgsl */ `
-struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
-};
-@group(0) @binding(0) var<uniform> u: U;
+          struct U {
+            time: f32,
+            mx: f32,
+            my: f32,
+            down: f32,
+          };
+          @group(0) @binding(0) var<uniform> u: U;
 
-fn hash2(p: vec2f) -> f32 {
-  let h = sin(dot(p, vec2f(127.1,311.7)))*43758.5453;
-  return fract(h);
-}
+          fn hash(p: vec2f) -> f32 {
+            let h = dot(p, vec2f(127.1, 311.7));
+            return fract(sin(h) * 43758.5453);
+          }
 
-// crystal shards field
-fn shards(uv: vec2f, t: f32) -> f32 {
-  var v = 0.0;
-  for(var i=0;i<10;i++){
-    let angle = t*0.5 + f32(i)*3.14/5.0;
-    let pos = vec2f(cos(angle), sin(angle)) * 0.3 * (0.5+0.5*sin(t*0.7 + f32(i)));
-    let d = length(uv - pos);
-    v += exp(-d*d*50.0);
-  }
-  return v;
-}
+          fn noise(p: vec2f) -> f32 {
+            let i = floor(p);
+            let f = fract(p);
+            let a = hash(i);
+            let b = hash(i + vec2f(1.0, 0.0));
+            let c = hash(i + vec2f(0.0, 1.0));
+            let d = hash(i + vec2f(1.0, 1.0));
+            let u = f*f*(3.0-2.0*f);
+            return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+          }
 
-// neon color mapping
-fn shardColor(val: f32, uv: vec2f) -> vec3f {
-  return vec3f(
-    0.2 + 0.8*val,
-    0.5 + 0.5*sin(uv.x*10.0 + val*5.0),
-    0.5 + 0.5*cos(uv.y*10.0 + val*3.0)
-  );
-}
+          @fragment
+          fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            let p = uv - 0.5;
+            let mouse = vec2f(u.mx, u.my) - 0.5;
+            let dist = length(p - mouse);
 
-// mouse interaction
-fn mouseForce(uv: vec2f, mouse: vec2f, down: f32) -> f32 {
-  let d = length(uv - mouse);
-  return exp(-d*d*40.0) * (1.0 + down*3.0);
-}
+            // Jellyfish pulse
+            let t = u.time * 0.5;
+            let radius = 0.02 + 0.01 * sin(t*3.0 + dist*10.0);
 
-@fragment
-fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-  let aspect = u.w / u.h;
-  let t = u.time;
-  let uvA = (uv - 0.5) * vec2f(aspect,1.0);
+            let glow = exp(-pow(dist/radius, 2.5));
 
-  let val = shards(uvA, t);
+            // Electric tentacle effect
+            let angle = atan2(p.y - mouse.y, p.x - mouse.x);
+            let streak = sin(20.0 * dist - t*5.0 + angle*6.0)*0.5 + 0.5;
 
-  let mouse = vec2f(u.mx, u.my) * vec2f(aspect,1.0) - vec2f(0.5*aspect,0.5);
-  val += mouseForce(uvA, mouse, u.down);
+            let col = vec3f(glow*streak, glow*pow(streak,1.5), glow*pow(1.0-streak,1.2));
 
-  var col = shardColor(val, uvA);
+            // Background subtle flicker
+            col += vec3f(0.02,0.01,0.03)*noise(uv*5.0 + t);
 
-  // gamma correction
-  col = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2));
-  return vec4f(col,1.0);
-}
-          `,
+            col = pow(col, vec3f(0.4545)); // gamma
+            return vec4f(col, 1.0);
+          }
+          `
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -114,11 +101,13 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
                     stop = startLoop((time) => {
                         const ptr = pointerRef.current
-                        const { width, height } = configureCanvasSize(canvas, context, device, format)
+                        configureCanvasSize(canvas, context, device, format)
 
                         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-                            time, width, height,
-                            ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
+                            time * 0.001,
+                            ptr.x,
+                            1 - ptr.y,
+                            ptr.down ? 1 : 0,
                         ]))
 
                         const encoder = device.createCommandEncoder()
@@ -141,7 +130,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -157,8 +145,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Crystal Shards Explosion"
-            hint="Move mouse to push/pull shards. Click to trigger shard bursts."
+            title="Electric Jellyfish"
+            hint="Move your mouse to summon pulsing electric jellyfish with glowing tentacles!"
             error={error ?? gpuError}
         >
             <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />

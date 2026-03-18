@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function GalaxySpiralDemo() {
+export default function CelestialOrbSwirlDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -16,7 +16,6 @@ export default function GalaxySpiralDemo() {
 
     useEffect(() => {
         if (!gpuState) return
-
         const { device, format } = gpuState
         const canvas = canvasRef.current
         if (!canvas) return
@@ -27,115 +26,69 @@ export default function GalaxySpiralDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
-
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
-                        size: 4 * 8,
+                        size: 32,
                         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     })
 
                     const pipeline = fullscreenPipeline({
                         device,
                         format,
-                        fragmentCode: /* wgsl */`
+                        fragmentCode: /* wgsl */ `
+          struct U {
+            time: f32,
+            mx: f32,
+            my: f32,
+            down: f32,
+          };
+          @group(0) @binding(0) var<uniform> u: U;
 
-struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
-};
-@group(0) @binding(0) var<uniform> u: U;
+          fn hsv2rgb(h: vec3f) -> vec3f {
+            let i = floor(h.x*6.0);
+            let f = h.x*6.0 - i;
+            let p = h.z*(1.0-h.y);
+            let q = h.z*(1.0-f*h.y);
+            let t = h.z*(1.0-(1.0-f)*h.y);
+            var c = vec3f(0.0);
+            switch(i % 6) {
+              case 0: { c=vec3f(h.z,t,p) }
+              case 1: { c=vec3f(q,h.z,p) }
+              case 2: { c=vec3f(p,h.z,t) }
+              case 3: { c=vec3f(p,q,h.z) }
+              case 4: { c=vec3f(t,p,h.z) }
+              case 5: { c=vec3f(h.z,p,q) }
+              default: {}
+            }
+            return c;
+          }
 
-// hash
-fn hash(p: vec2f) -> f32 {
-  return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453);
-}
+          @fragment
+          fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            let p = uv - 0.5;
+            let t = u.time * 0.002;
+            let m = vec2f(u.mx-0.5,u.my-0.5);
 
-// smooth rainbow palette
-fn palette(t: f32) -> vec3f {
-  return 0.5 + 0.5 * cos(6.28318 * (vec3f(0.0,0.33,0.67) + t));
-}
+            var col = vec3f(0.0);
+            for(var i: i32=0; i<12; i=i+1){
+              let angle = t + f32(i)*0.5;
+              var pos = vec2f(cos(angle), sin(angle)) * 0.3;
+              pos += m * 0.1; // mouse influence
+              let d = length(p - pos);
+              let hue = fract(f32(i)*0.08 + t*0.1);
+              col += hsv2rgb(vec3f(hue,0.8,1.0)) * smoothstep(0.05,0.0,d);
+            }
 
-@fragment
-fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            // soft glow background
+            col += vec3f(0.01,0.02,0.04) * exp(-10.0*length(p));
 
-  let t = u.time * 0.5;
-  let aspect = u.w / u.h;
-
-  var p = uv * 2.0 - 1.0;
-  p.x *= aspect;
-
-  let mouse = vec2f(u.mx * 2.0 - 1.0, (1.0 - u.my) * 2.0 - 1.0);
-
-  var col = vec3f(0.0);
-
-  // fake particle layers
-  for (var i = 0; i < 4; i = i + 1) {
-
-    let fi = f32(i);
-
-    let scale = 6.0 + fi * 5.0;
-    var gp = p * scale;
-
-    let id = floor(gp);
-    let cell = fract(gp) - 0.5;
-
-    let rnd = hash(id + fi * 20.0);
-
-    // convert to polar
-    let center = (id + 0.5) / scale;
-
-    var dir = center - mouse;
-    let r = length(dir);
-
-    let angle = atan2(dir.y, dir.x);
-
-    // spiral motion
-    let spiral = angle + t * (0.5 + rnd) + r * 5.0;
-
-    let offset = vec2f(cos(spiral), sin(spiral)) * 0.3;
-
-    var pos = cell - offset;
-
-    let d = length(pos);
-
-    // particle glow
-    let glow = exp(-d * 18.0);
-
-    // galaxy fade (less at edges)
-    let fade = exp(-r * 2.0);
-
-    let c = palette(rnd + fi * 0.2 + r * 0.5 + t * 0.1);
-
-    col += c * glow * fade * (0.6 + fi * 0.3);
-  }
-
-  // core glow
-  let core = exp(-length(p - mouse) * 5.0);
-  col += vec3f(1.0, 0.9, 0.7) * core * 1.2;
-
-  // supernova click
-  let r = length(p - mouse);
-  let burst = sin(r * 40.0 - t * 12.0) * exp(-r * 4.0) * u.down;
-  col += vec3f(1.0, 0.7, 0.3) * burst;
-
-  // tone mapping
-  col = col / (1.0 + col);
-
-  // gamma
-  col = pow(col, vec3f(1.0 / 2.2));
-
-  return vec4f(col, 1.0);
-}
-`,
+            col = pow(col, vec3f(0.4545));
+            return vec4f(col,1.0);
+          }
+          `
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -149,11 +102,13 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
                     stop = startLoop((time) => {
                         const ptr = pointerRef.current
-                        const { width, height } = configureCanvasSize(canvas, context, device, format)
+                        configureCanvasSize(canvas, context, device, format)
 
                         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-                            time, width, height,
-                            ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
+                            time,
+                            ptr.x,
+                            1 - ptr.y,
+                            ptr.down ? 1 : 0,
                         ]))
 
                         const encoder = device.createCommandEncoder()
@@ -164,12 +119,10 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                                 loadOp: "clear", storeOp: "store",
                             }],
                         })
-
                         pass.setPipeline(pipeline)
                         pass.setBindGroup(0, bindGroup)
                         pass.draw(6)
                         pass.end()
-
                         device.queue.submit([encoder.finish()])
                     })
 
@@ -178,7 +131,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -194,16 +146,11 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Galaxy Spiral Particles"
-            hint="Move mouse = gravity center. Click = supernova burst."
+            title="Celestial Orb Swirl"
+            hint="Move your mouse to shift and bend the orbiting celestial orbs."
             error={error ?? gpuError}
         >
-            <canvas
-                ref={canvasRef}
-                width={1920}
-                height={1080}
-                style={{ width: "100%", height: "100%", display: "block" }}
-            />
+            <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />
         </DemoShell>
     )
 }

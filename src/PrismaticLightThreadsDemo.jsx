@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function ElectricNeuralWebDemo() {
+export default function PrismaticLightThreadsDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -26,12 +26,12 @@ export default function ElectricNeuralWebDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
-                        size: 4 * 8,
+                        size: 32,
                         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     })
 
@@ -39,62 +39,64 @@ export default function ElectricNeuralWebDemo() {
                         device,
                         format,
                         fragmentCode: /* wgsl */ `
-struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
-};
-@group(0) @binding(0) var<uniform> u: U;
+          struct U {
+            time: f32,
+            mx: f32,
+            my: f32,
+            down: f32,
+          };
+          @group(0) @binding(0) var<uniform> u: U;
 
-// hash for pseudo-random
-fn hash2(p: vec2f) -> f32 {
-  return fract(sin(dot(p, vec2f(12.9898,78.233)))*43758.5453);
-}
+          fn hsv2rgb(h: vec3f) -> vec3f {
+            let i = floor(h.x * 6.0);
+            let f = h.x * 6.0 - i;
+            let p = h.z * (1.0 - h.y);
+            let q = h.z * (1.0 - f * h.y);
+            let t = h.z * (1.0 - (1.0 - f) * h.y);
+            var rgb = vec3f(0.0);
+            switch(i % 6) {
+              case 0: { rgb = vec3f(h.z,t,p) }
+              case 1: { rgb = vec3f(q,h.z,p) }
+              case 2: { rgb = vec3f(p,h.z,t) }
+              case 3: { rgb = vec3f(p,q,h.z) }
+              case 4: { rgb = vec3f(t,p,h.z) }
+              case 5: { rgb = vec3f(h.z,p,q) }
+              default: {}
+            }
+            return rgb;
+          }
 
-// electric web node
-fn node(pos: vec2f, uv: vec2f, t: f32) -> f32 {
-  let d = length(uv - pos)
-  return 0.01 / (d*d + 0.0001) * (0.5 + 0.5*sin(t*5.0 + d*20.0))
-}
+          fn swirl(p: vec2f, strength: f32) -> vec2f {
+            let r = length(p);
+            let a = atan2(p.y,p.x) + strength * exp(-r*3.0);
+            return vec2f(cos(a), sin(a)) * r;
+          }
 
-@fragment
-fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-  let t = u.time
-  let uvA = uv - 0.5
-  var intensity = 0.0
+          @fragment
+          fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            let p = uv - 0.5;
+            let t = u.time * 0.002;
+            let m = vec2f(u.mx-0.5,u.my-0.5);
 
-  // generate network of nodes
-  for(var i = 0; i < 15; i++){
-    for(var j = 0; j < 10; j++){
-      let x = f32(i)/15.0 - 0.5
-      let y = f32(j)/10.0 - 0.5
-      let pos = vec2f(x + sin(t*0.2+i)*0.02, y + cos(t*0.3+j)*0.02)
-      intensity += node(pos, uvA, t)
-      // edges
-      if(i<14){
-        let x2 = f32(i+1)/15.0 - 0.5
-        let pos2 = vec2f(x2 + sin(t*0.2+i+1)*0.02, y + cos(t*0.3+j)*0.02)
-        let dist = length(uvA - 0.5*(pos+pos2))
-        intensity += 0.008 / (dist*dist + 0.0001)
-      }
-    }
-  }
+            // create multiple light threads
+            var col = vec3f(0.0);
+            for(var i: i32=0; i<7; i=i+1){
+              let angle = t*0.3 + f32(i)*1.5;
+              var q = p + vec2f(sin(angle*0.7), cos(angle*0.5))*0.3;
+              q = swirl(q - m*0.3, 2.0);
+              let d = length(q);
+              let hue = fract(f32(i)*0.15 + t*0.1 + d*0.5);
+              let intensity = smoothstep(0.02,0.0,d);
+              col += hsv2rgb(vec3f(hue,0.8,1.0)) * intensity;
+            }
 
-  // mouse pulse
-  let mouse = vec2f(u.mx, u.my) - vec2f(0.5,0.5)
-  let dMouse = length(uvA - mouse)
-  intensity += u.down*0.05 / (dMouse*dMouse + 0.001)
+            // soft glow
+            col += vec3f(0.02,0.03,0.05) * exp(-10.0*length(p));
 
-  let col = vec3f(intensity, intensity*0.5, intensity*1.0)
-  col = pow(max(col, vec3f(0.0)), vec3f(1.0/2.2))
-  return vec4f(col, 1.0)
-}
-          `,
+            col = pow(col, vec3f(0.4545)); // gamma
+            return vec4f(col,1.0);
+          }
+          `
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -108,11 +110,13 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
                     stop = startLoop((time) => {
                         const ptr = pointerRef.current
-                        const { width, height } = configureCanvasSize(canvas, context, device, format)
+                        configureCanvasSize(canvas, context, device, format)
 
                         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-                            time, width, height,
-                            ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
+                            time,
+                            ptr.x,
+                            1 - ptr.y,
+                            ptr.down ? 1 : 0,
                         ]))
 
                         const encoder = device.createCommandEncoder()
@@ -135,7 +139,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -151,8 +154,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Electric Neural Web"
-            hint="Move mouse to interact with the web. Click to send electric pulses."
+            title="Prismatic Light Threads"
+            hint="Move your mouse to twist colorful, delicate light threads."
             error={error ?? gpuError}
         >
             <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />

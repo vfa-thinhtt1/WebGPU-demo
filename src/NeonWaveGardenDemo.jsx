@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function RainbowParticlesDemo() {
+export default function NeonWaveGardenDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -16,7 +16,6 @@ export default function RainbowParticlesDemo() {
 
     useEffect(() => {
         if (!gpuState) return
-
         const { device, format } = gpuState
         const canvas = canvasRef.current
         if (!canvas) return
@@ -27,109 +26,71 @@ export default function RainbowParticlesDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
-
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
-                        size: 4 * 8,
+                        size: 32,
                         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     })
 
                     const pipeline = fullscreenPipeline({
                         device,
                         format,
-                        fragmentCode: /* wgsl */`
+                        fragmentCode: /* wgsl */ `
+          struct U {
+            time: f32,
+            mx: f32,
+            my: f32,
+            down: f32,
+          };
+          @group(0) @binding(0) var<uniform> u: U;
 
-struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
-};
-@group(0) @binding(0) var<uniform> u: U;
+          fn hsv2rgb(h: vec3f) -> vec3f {
+            let i = floor(h.x*6.0);
+            let f = h.x*6.0 - i;
+            let p = h.z*(1.0-h.y);
+            let q = h.z*(1.0-f*h.y);
+            let t = h.z*(1.0-(1.0-f)*h.y);
+            var c = vec3f(0.0);
+            switch(i % 6) {
+              case 0: { c=vec3f(h.z,t,p) }
+              case 1: { c=vec3f(q,h.z,p) }
+              case 2: { c=vec3f(p,h.z,t) }
+              case 3: { c=vec3f(p,q,h.z) }
+              case 4: { c=vec3f(t,p,h.z) }
+              case 5: { c=vec3f(h.z,p,q) }
+              default: {}
+            }
+            return c;
+          }
 
-// hash for pseudo random
-fn hash(p: vec2f) -> f32 {
-  return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453123);
-}
+          @fragment
+          fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            let t = u.time * 0.003;
+            let p = uv - 0.5;
+            let m = vec2f(u.mx-0.5, u.my-0.5);
 
-// rainbow palette
-fn palette(t: f32) -> vec3f {
-  return 0.5 + 0.5 * cos(6.28318 * (vec3f(0.0,0.33,0.67) + t));
-}
+            var col = vec3f(0.0);
 
-@fragment
-fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            for(var i: i32=0; i<8; i=i+1){
+              let freq = 3.0 + f32(i)*0.5;
+              let speed = 0.5 + f32(i)*0.1;
+              let phase = t*speed + f32(i)*0.7;
+              let y = sin(p.x*freq + phase + length(p+m)*3.0)*0.1 + f32(i)*0.02;
+              let dist = abs(p.y - y);
+              let hue = fract(f32(i)*0.12 + phase*0.1);
+              col += hsv2rgb(vec3f(hue,0.8,1.0)) * smoothstep(0.02,0.0,dist);
+            }
 
-  let t = u.time * 0.6;
-  let aspect = u.w / u.h;
+            // subtle glow background
+            col += vec3f(0.02,0.03,0.05) * exp(-10.0*length(p));
 
-  var p = uv * 2.0 - 1.0;
-  p.x *= aspect;
-
-  let mouse = vec2f(u.mx * 2.0 - 1.0, (1.0 - u.my) * 2.0 - 1.0);
-
-  var col = vec3f(0.0);
-
-  // fake particle layers (cheap)
-  for (var i = 0; i < 3; i = i + 1) {
-
-    let fi = f32(i);
-
-    // grid id
-    let scale = 8.0 + fi * 6.0;
-    var gp = p * scale;
-
-    let id = floor(gp);
-    let cell = fract(gp) - 0.5;
-
-    // random offset per cell
-    let rnd = hash(id + fi * 10.0);
-
-    let angle = rnd * 6.28318 + t * (0.5 + rnd);
-    let offset = vec2f(cos(angle), sin(angle)) * 0.3;
-
-    var pos = cell - offset;
-
-    // mouse attraction
-    let dMouse = length((id/scale) - mouse);
-    let attract = 1.0 / (1.0 + dMouse * 10.0);
-    pos -= normalize(pos) * attract * 0.3;
-
-    let d = length(pos);
-
-    // particle glow
-    let glow = exp(-d * 20.0);
-
-    // color
-    let c = palette(rnd + fi * 0.2 + t * 0.2);
-
-    col += c * glow * (0.6 + fi * 0.4);
-  }
-
-  // click explosion
-  let r = length(p - mouse);
-  let burst = sin(r * 30.0 - t * 10.0) * exp(-r * 4.0) * u.down;
-  col += vec3f(1.0, 0.8, 0.5) * burst;
-
-  // center glow
-  col += vec3f(1.0) * exp(-length(p) * 4.0) * 0.2;
-
-  // tone mapping
-  col = col / (1.0 + col);
-
-  // gamma
-  col = pow(col, vec3f(1.0 / 2.2));
-
-  return vec4f(col, 1.0);
-}
-`,
+            col = pow(col, vec3f(0.4545)); // gamma
+            return vec4f(col,1.0);
+          }
+          `
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -143,11 +104,13 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
                     stop = startLoop((time) => {
                         const ptr = pointerRef.current
-                        const { width, height } = configureCanvasSize(canvas, context, device, format)
+                        configureCanvasSize(canvas, context, device, format)
 
                         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-                            time, width, height,
-                            ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
+                            time,
+                            ptr.x,
+                            1 - ptr.y,
+                            ptr.down ? 1 : 0,
                         ]))
 
                         const encoder = device.createCommandEncoder()
@@ -158,12 +121,10 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                                 loadOp: "clear", storeOp: "store",
                             }],
                         })
-
                         pass.setPipeline(pipeline)
                         pass.setBindGroup(0, bindGroup)
                         pass.draw(6)
                         pass.end()
-
                         device.queue.submit([encoder.finish()])
                     })
 
@@ -172,7 +133,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -188,16 +148,11 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Rainbow Particle Field"
-            hint="Move mouse to attract particles. Click to explode energy."
+            title="Neon Wave Garden"
+            hint="Move your mouse to bend the colorful waves in this energy garden."
             error={error ?? gpuError}
         >
-            <canvas
-                ref={canvasRef}
-                width={1920}
-                height={1080}
-                style={{ width: "100%", height: "100%", display: "block" }}
-            />
+            <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />
         </DemoShell>
     )
 }

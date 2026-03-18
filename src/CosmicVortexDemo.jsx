@@ -8,7 +8,7 @@ import {
     usePointer,
 } from "./webgpuCommon.jsx"
 
-export default function KaleidoPulseDemo() {
+export default function CosmicVortexDemo() {
     const canvasRef = useRef(null)
     const pointerRef = usePointer(canvasRef)
     const { gpuState, error: gpuError } = useWebGPU()
@@ -16,7 +16,6 @@ export default function KaleidoPulseDemo() {
 
     useEffect(() => {
         if (!gpuState) return
-
         const { device, format } = gpuState
         const canvas = canvasRef.current
         if (!canvas) return
@@ -27,110 +26,70 @@ export default function KaleidoPulseDemo() {
 
             ; (async () => {
                 try {
-                    context = canvas.getContext("webgpu")
-                    context.configure({ device, format, alphaMode: "premultiplied" })
-
+                    context = canvas.getContext('webgpu')
+                    context.configure({ device, format, alphaMode: 'premultiplied' })
                     if (cancelled) { context.unconfigure(); return }
 
                     const uniformBuffer = device.createBuffer({
-                        size: 4 * 8,
+                        size: 32,
                         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     })
 
                     const pipeline = fullscreenPipeline({
                         device,
                         format,
-                        fragmentCode: /* wgsl */`
+                        fragmentCode: /* wgsl */ `
+          struct U {
+            time: f32,
+            mx: f32,
+            my: f32,
+            down: f32,
+          };
+          @group(0) @binding(0) var<uniform> u: U;
 
-struct U {
-  time : f32,
-  w    : f32,
-  h    : f32,
-  mx   : f32,
-  my   : f32,
-  mdx  : f32,
-  mdy  : f32,
-  down : f32,
-};
-@group(0) @binding(0) var<uniform> u: U;
+          fn hsv2rgb(h: vec3f) -> vec3f {
+            let c = vec3f(1.0);
+            let i = floor(h.x*6.0);
+            let f = h.x*6.0 - i;
+            let p = 0.0;
+            let q = 1.0 - f;
+            let t = f;
+            var rgb = vec3f(0.0);
+            switch(i % 6) {
+              case 0: { rgb = vec3f(1.0,t,p) }
+              case 1: { rgb = vec3f(q,1.0,p) }
+              case 2: { rgb = vec3f(p,1.0,t) }
+              case 3: { rgb = vec3f(p,q,1.0) }
+              case 4: { rgb = vec3f(t,p,1.0) }
+              case 5: { rgb = vec3f(1.0,p,q) }
+              default: {}
+            }
+            return rgb;
+          }
 
-fn palette(t: f32) -> vec3f {
-  let a = vec3f(0.5, 0.5, 0.5);
-  let b = vec3f(0.5, 0.5, 0.5);
-  let c = vec3f(1.0, 1.0, 1.0);
-  let d = vec3f(0.0, 0.2, 0.4);
-  return a + b * cos(6.28318 * (c * t + d));
-}
+          @fragment
+          fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            let p = uv - 0.5;
+            let aspect = 1.0;
+            let t = u.time * 0.002;
 
-// kaleidoscope fold
-fn kaleido(p: vec2f, sides: f32) -> vec2f {
-  let angle = atan2(p.y, p.x);
-  let r = length(p);
+            // vortex polar coordinates
+            let r = length(p);
+            let angle = atan2(p.y, p.x) + t*2.0;
+            let spiral = sin(10.0*r - t*5.0 + angle*6.0);
 
-  let sector = 6.28318 / sides;
-  let a = mod(angle, sector);
-  let mirrored = abs(a - sector * 0.5);
+            let hue = fract(angle*0.15 + t*0.1 + spiral*0.1);
+            let brightness = smoothstep(0.0, 0.5, 1.0 - r + spiral*0.05);
 
-  return vec2f(cos(mirrored), sin(mirrored)) * r;
-}
+            var col = hsv2rgb(vec3f(hue,1.0,brightness));
 
-@fragment
-fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+            // subtle trailing effect
+            col *= 0.8 + 0.2*sin(5.0*r - t*2.0);
 
-  let t = u.time;
-  let aspect = u.w / u.h;
-
-  var p = uv * 2.0 - 1.0;
-  p.x *= aspect;
-
-  let mouse = vec2f(u.mx * 2.0 - 1.0, (1.0 - u.my) * 2.0 - 1.0);
-
-  // move symmetry center with mouse
-  p -= mouse * 0.5;
-
-  // ── kaleidoscope transform ──
-  let sides = 6.0 + sin(t * 0.5) * 2.0;
-  var kp = kaleido(p, sides);
-
-  // ── grid pattern ──
-  var gp = kp * 4.0;
-
-  let grid = abs(fract(gp) - 0.5);
-  let line = min(grid.x, grid.y);
-
-  let tiles = smoothstep(0.2, 0.0, line);
-
-  // ── pulse waves ──
-  let r = length(kp);
-  let pulse = sin(r * 12.0 - t * 3.0);
-
-  // ── click shock ──
-  let shock = sin(r * 30.0 - t * 10.0) * exp(-r * 3.0) * u.down;
-
-  var energy = tiles + pulse * 0.5 + shock * 1.5;
-
-  // ── color ──
-  var col = palette(energy + r * 0.3 + t * 0.2);
-
-  // neon grid boost
-  col += vec3f(0.2, 0.8, 1.0) * tiles * 1.5;
-
-  // glow
-  let glow = smoothstep(0.3, 0.8, energy);
-  col += col * glow * 0.8;
-
-  // center highlight
-  col += vec3f(1.0) * exp(-r * 5.0) * 0.4;
-
-  // vignette
-  col *= 1.0 - r * 0.8;
-
-  // gamma
-  col = pow(col, vec3f(1.0 / 2.2));
-
-  return vec4f(col, 1.0);
-}
-`,
+            col = pow(col, vec3f(0.4545));
+            return vec4f(col,1.0);
+          }
+          `
                     })
 
                     const bindGroup = device.createBindGroup({
@@ -144,11 +103,13 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
                     stop = startLoop((time) => {
                         const ptr = pointerRef.current
-                        const { width, height } = configureCanvasSize(canvas, context, device, format)
+                        configureCanvasSize(canvas, context, device, format)
 
                         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
-                            time, width, height,
-                            ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
+                            time,
+                            ptr.x,
+                            1 - ptr.y,
+                            ptr.down ? 1 : 0,
                         ]))
 
                         const encoder = device.createCommandEncoder()
@@ -159,12 +120,10 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                                 loadOp: "clear", storeOp: "store",
                             }],
                         })
-
                         pass.setPipeline(pipeline)
                         pass.setBindGroup(0, bindGroup)
                         pass.draw(6)
                         pass.end()
-
                         device.queue.submit([encoder.finish()])
                     })
 
@@ -173,7 +132,6 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
                         origStop()
                         window.removeEventListener("resize", onResize)
                     }
-
                 } catch (e) {
                     console.error(e)
                     setError(e?.message ?? String(e))
@@ -189,16 +147,11 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     return (
         <DemoShell
-            title="Kaleidoscope Pulse Grid"
-            hint="Move mouse to shift symmetry. Click to send pulse waves."
+            title="Cosmic Ribbon Vortex"
+            hint="Move your mouse to warp the colorful vortex!"
             error={error ?? gpuError}
         >
-            <canvas
-                ref={canvasRef}
-                width={1920}
-                height={1080}
-                style={{ width: "100%", height: "100%", display: "block" }}
-            />
+            <canvas ref={canvasRef} width={1920} height={1080} style={{ width: '100%', height: '100%', display: 'block' }} className="demo-canvas" />
         </DemoShell>
     )
 }
