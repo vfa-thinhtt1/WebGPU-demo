@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { WebGPUProvider } from './WebGPUContext.jsx'
+import { FPSStats } from './webgpuCommon.jsx'
 import FractalTunnelDemo from './FractalTunnelDemo.jsx'
 import GalaxyWarpDemo from './GalaxyWarpDemo.jsx'
 import LavaOceanDemo from './LavaOceanDemo.jsx'
@@ -40,6 +41,20 @@ import TechnoGrowthDemo from './TechnoGrowthDemo.jsx'
 import ShatteredDimensionDemo from './ShatteredDimensionDemo.jsx'
 import SolarFlareDemo from './SolarFlareDemo.jsx'
 import QuantumWeaverDemo from './QuantumWeaverDemo.jsx'
+import HolographicTopographyDemo from './HolographicTopographyDemo.jsx'
+import TimeWarpTunnelDemo from './TimeWarpTunnelDemo.jsx'
+import SynthwaveSunDemo from './SynthwaveSunDemo.jsx'
+import FractalIslandsDemo from './FractalIslandsDemo.jsx'
+import GoldenSpiralDemo from './GoldenSpiralDemo.jsx'
+import RainbowVortexDemo from './RainbowVortexDemo.jsx'
+import ChromaticFluidDemo from './ChromaticFluidDemo.jsx'
+import PsychedelicWavesDemo from './PsychedelicWavesDemo.jsx'
+import CyberHeartDemo from './CyberHeartDemo.jsx'
+import LiquidGeometryDemo from './LiquidGeometryDemo.jsx'
+import LiquidPlasmaFlowDemo from './LiquidPlasmaFlowDemo.jsx'
+import LiquidCrystalBlobsDemo from './LiquidCrystalBlobsDemo.jsx'
+import BioluminescentOrbsDemo from './BioluminescentOrbsDemo.jsx'
+import NeonDataStreamDemo from './NeonDataStreamDemo.jsx'
 
 const demos = [
   { key: 'tunnel', label: 'Fractal Tunnel', component: FractalTunnelDemo },
@@ -82,8 +97,21 @@ const demos = [
   { key: 'shattered', label: 'Shattered Dimension', component: ShatteredDimensionDemo },
   { key: 'solarflare', label: 'Solar Flare', component: SolarFlareDemo },
   { key: 'quantumweaver', label: 'Quantum Weaver', component: QuantumWeaverDemo },
+  { key: 'topography', label: 'Holo Topography', component: HolographicTopographyDemo },
+  { key: 'timewarp', label: 'Time Warp Tunnel', component: TimeWarpTunnelDemo },
+  { key: 'synthwave', label: 'Synthwave Sun', component: SynthwaveSunDemo },
+  { key: 'fractalislands', label: 'Fractal Islands', component: FractalIslandsDemo },
+  { key: 'goldenspiral', label: 'Golden Spiral', component: GoldenSpiralDemo },
+  { key: 'rainbowvortex', label: 'Rainbow Vortex', component: RainbowVortexDemo },
+  { key: 'chromaticfluid', label: 'Chromatic Fluid', component: ChromaticFluidDemo },
+  { key: 'psychedelicwaves', label: 'Psychedelic Waves', component: PsychedelicWavesDemo },
+  { key: 'cyberheart', label: 'Cyber Heart', component: CyberHeartDemo },
+  { key: 'liquidgeometry', label: 'Liquid Geometry', component: LiquidGeometryDemo },
+  { key: 'plasmaflow', label: 'Liquid Plasma Flow', component: LiquidPlasmaFlowDemo },
+  { key: 'crystalblobs', label: 'Liquid Crystal Blobs', component: LiquidCrystalBlobsDemo },
+  { key: 'bioorbs', label: 'Bioluminescent Orbs', component: BioluminescentOrbsDemo },
+  { key: 'neondatastream', label: 'Neon Data Stream', component: NeonDataStreamDemo },
 ]
-
 function DemoSelector() {
   const [activeKey, setActiveKey] = useState('tunnel')
   const Active = useMemo(
@@ -91,27 +119,115 @@ function DemoSelector() {
     [activeKey],
   )
 
-  const supported = typeof navigator !== 'undefined' && 'gpu' in navigator
-
   return (
-    <main id="center">
-      <div className="demo-tabs">
-        {Array.from({ length: Math.ceil(demos.length / 10) }).map((_, rowIndex) => (
-          <div key={rowIndex} className="tabs-row">
-            {demos.slice(rowIndex * 10, (rowIndex + 1) * 10).map((d) => (
+    <main id="center" style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', paddingTop: '0', boxSizing: 'border-box' }}>
+
+      {/* Top Floating Menu */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '80vw',
+        height: '60px',
+        zIndex: 2000,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        background: 'rgba(0, 0, 0, 0.35)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '30px',
+        overflow: 'hidden',
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
+        transition: 'all 0.3s ease'
+      }}>
+        <div style={{
+          padding: '0 24px',
+          color: 'rgba(255,255,255,0.8)',
+          letterSpacing: '2px',
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          fontWeight: 'bold',
+          borderRight: '1px solid rgba(255,255,255,0.1)',
+          whiteSpace: 'nowrap'
+        }}>
+          {demos.findIndex(d => d.key === activeKey) + 1} / {demos.length}
+        </div>
+
+        <div className="top-menu-scroll" style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '0 16px',
+          overflowX: 'auto',
+          height: '100%',
+          flex: 1
+        }}>
+          {demos.map((d) => {
+            const isActive = d.key === activeKey;
+            return (
               <button
                 key={d.key}
-                className={d.key === activeKey ? 'tab active' : 'tab'}
-                type="button"
                 onClick={() => setActiveKey(d.key)}
+                style={{
+                  background: isActive ? 'rgba(74, 222, 128, 0.2)' : 'transparent',
+                  border: isActive ? '1px solid rgba(74, 222, 128, 0.5)' : '1px solid transparent',
+                  color: isActive ? '#4ade80' : 'rgba(255, 255, 255, 1)',
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                    e.currentTarget.style.color = '#fff';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.95)';
+                  }
+                }}
               >
+                {isActive && <span style={{ fontSize: '10px' }}>●</span>}
                 {d.label}
               </button>
-            ))}
-          </div>
-        ))}
+            )
+          })}
+        </div>
+        <FPSStats />
       </div>
 
+      <style>{`
+        .top-menu-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+        .top-menu-scroll::-webkit-scrollbar-track {
+          background: transparent;
+          margin: 20px;
+        }
+        .top-menu-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+        }
+        .top-menu-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
+
+      {/* Demo Canvas Underlying */}
       <Active />
     </main>
   )

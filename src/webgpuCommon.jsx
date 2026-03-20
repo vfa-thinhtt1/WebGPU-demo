@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { clamp01, configureCanvasSize } from './webgpuUtils.js'
 
-function FPSStats() {
+export function FPSStats() {
   const [fps, setFps] = useState(0)
   const frameCount = useRef(0)
   const lastTime = useRef(performance.now())
@@ -96,7 +96,6 @@ export function usePointer(canvasRef) {
 export function DemoShell({ title, hint, error, children, extra }) {
   return (
     <div className="demo">
-      <FPSStats />
       <div className="demo-info">
         <h2>{title}</h2>
         {hint && <p className="demo-caption">{hint}</p>}

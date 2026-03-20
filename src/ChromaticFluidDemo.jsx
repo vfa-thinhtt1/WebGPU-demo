@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useWebGPU } from "./WebGPUContext.jsx"
 import { DemoShell, configureCanvasSize, fullscreenPipeline, startLoop, usePointer } from "./webgpuCommon.jsx"
 
-export default function FractalTunnelDemo() {
+export default function ChromaticFluidDemo() {
   const canvasRef  = useRef(null)
   const pointerRef = usePointer(canvasRef)
   const { gpuState, error: gpuError } = useWebGPU()
@@ -49,37 +49,33 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
-fn palette(t:f32)->vec3f{
-  return vec3f(
-    0.5 + 0.5*sin(6.2831*(t+0.0)),
-    0.5 + 0.5*sin(6.2831*(t+0.33)),
-    0.5 + 0.5*sin(6.2831*(t+0.66))
-  );
-}
-
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
+    let aspect = u.w / u.h;
+    var p = (uv - 0.5) * vec2f(aspect, 1.0) * 5.0;
+    p += (vec2f(u.mx, u.my) - 0.5) * 4.0;
+    
+    let time = u.time * 0.5;
+    
+    var q = p;
+    for(var i = 1.0; i < 7.0; i += 1.0) {
+        let oldX = q.x;
+        // Domain warping with sine waves
+        q.x += 0.6 / i * cos(i * 2.5 * q.y + time);
+        q.y += 0.6 / i * cos(i * 1.5 * oldX + time);
+    }
+    
+    // Mapping to incredibly saturated colors
+    let col = vec3f(
+        sin(q.x + time) * 0.5 + 0.5,
+        sin(q.y + time + 2.0) * 0.5 + 0.5,
+        sin(q.x + q.y + time + 4.0) * 0.5 + 0.5
+    );
 
-  let aspect = u.w / u.h;
-  var p = (uv - 0.5) * vec2f(aspect,1.0);
-
-  let mouse = (vec2f(u.mx,u.my)-0.5) * vec2f(aspect,1.0);
-
-  p += mouse * 0.5;
-
-  let r = length(p);
-  let a = atan2(p.y,p.x);
-
-  var t = u.time * 0.6;
-
-  var tunnel = sin(10.0*(1.0/r) + t);
-  var rings  = sin(8.0*r - t*2.0);
-  var v = tunnel + rings;
-
-  let col = palette(v + r*0.5 + u.time*0.1);
-  let glow = 0.15/(r+0.05);
-
-  return vec4f(col*(1.0+glow),1.0);
+    // Maximize saturation mapping by pushing to edges
+    let highlySaturated = smoothstep(vec3f(0.1), vec3f(0.9), col);
+    
+    return vec4f(highlySaturated, 1.0);
 }
           `,
         })
@@ -94,12 +90,12 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
         window.addEventListener("resize", onResize)
 
         stop = startLoop((time) => {
-          const p = pointerRef.current
+          const ptr = pointerRef.current
           const { width, height } = configureCanvasSize(canvas, context, device, format)
 
           device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
             time, width, height,
-            p.x, p.y, p.dx, p.dy, p.down ? 1 : 0,
+            ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
           ]))
 
           const encoder = device.createCommandEncoder()
@@ -138,8 +134,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   return (
     <DemoShell
-      title="Fractal Tunnel"
-      hint="Move mouse to bend the tunnel."
+      title="Chromatic Fluid"
+      hint="Watch the intensely colored liquid terrain flow."
       error={error ?? gpuError}
     >
       <canvas ref={canvasRef} width={1920} height={1080} style={{width:'100%',height:'100%',display:'block'}} className="demo-canvas" />

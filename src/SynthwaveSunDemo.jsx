@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useWebGPU } from "./WebGPUContext.jsx"
 import { DemoShell, configureCanvasSize, fullscreenPipeline, startLoop, usePointer } from "./webgpuCommon.jsx"
 
-export default function FractalTunnelDemo() {
+export default function SynthwaveSunDemo() {
   const canvasRef  = useRef(null)
   const pointerRef = usePointer(canvasRef)
   const { gpuState, error: gpuError } = useWebGPU()
@@ -49,37 +49,60 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
-fn palette(t:f32)->vec3f{
-  return vec3f(
-    0.5 + 0.5*sin(6.2831*(t+0.0)),
-    0.5 + 0.5*sin(6.2831*(t+0.33)),
-    0.5 + 0.5*sin(6.2831*(t+0.66))
-  );
-}
-
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-
   let aspect = u.w / u.h;
-  var p = (uv - 0.5) * vec2f(aspect,1.0);
+  var p = (uv - 0.5) * vec2f(aspect, 1.0);
+  let mouse = (vec2f(u.mx, u.my) - 0.5) * vec2f(aspect, 1.0);
+  p += mouse * 0.2;
 
-  let mouse = (vec2f(u.mx,u.my)-0.5) * vec2f(aspect,1.0);
+  var col = mix(vec3f(0.05, 0.0, 0.2), vec3f(0.8, 0.2, 0.5), smoothstep(0.5, -0.1, p.y));
 
-  p += mouse * 0.5;
-
-  let r = length(p);
-  let a = atan2(p.y,p.x);
-
-  var t = u.time * 0.6;
-
-  var tunnel = sin(10.0*(1.0/r) + t);
-  var rings  = sin(8.0*r - t*2.0);
-  var v = tunnel + rings;
-
-  let col = palette(v + r*0.5 + u.time*0.1);
-  let glow = 0.15/(r+0.05);
-
-  return vec4f(col*(1.0+glow),1.0);
+  let sunPos = p - vec2f(0.0, 0.05);
+  let sunDist = length(sunPos);
+  
+  if (sunDist < 0.3) {
+      let stripeVal = fract(sunPos.y * 20.0 - u.time * 2.0);
+      let sliceThickness = smoothstep(-0.2, 0.2, sunPos.y) * 0.5 + 0.1;
+      
+      if (stripeVal > sliceThickness || sunPos.y > 0.1) {
+          col = mix(vec3f(1.0, 0.2, 0.5), vec3f(1.0, 0.9, 0.1), smoothstep(-0.3, 0.3, sunPos.y));
+      } else {
+          let bgCol = mix(vec3f(0.05, 0.0, 0.2), vec3f(0.8, 0.2, 0.5), smoothstep(0.5, -0.1, p.y));
+          col = bgCol;
+      }
+  } else {
+      let sunGlow = 0.02 / max(sunDist - 0.3, 0.001);
+      col += vec3f(1.0, 0.3, 0.5) * sunGlow;
+  }
+  
+  if (p.y < -0.1) {
+      // Offset y to match horizon
+      let yPlane = p.y + 0.1;
+      let z = 0.5 / max(-yPlane, 0.001);
+      let dx = p.x * z;
+      let dz = z - u.time * 4.0;
+      
+      let gridX = abs(fract(dx) - 0.5);
+      let gridZ = abs(fract(dz) - 0.5);
+      
+      let lineThickness = 0.05 * z;
+      
+      let lineX = smoothstep(0.5 - lineThickness, 0.5, gridX);
+      let lineZ = smoothstep(0.5 - lineThickness, 0.5, gridZ);
+      
+      let gridLine = max(lineX, lineZ);
+      let fog = exp(-z * 0.1);
+      
+      let gridCol = vec3f(0.0, 0.8, 1.0) * gridLine * fog;
+      col = mix(vec3f(0.02, 0.0, 0.1), gridCol, fog);
+      col += gridCol;
+      
+      // Horizon glow
+      col += vec3f(0.8, 0.2, 0.5) * (0.05 / max(-yPlane, 0.001));
+  }
+  
+  return vec4f(col, 1.0);
 }
           `,
         })
@@ -99,7 +122,7 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
           device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
             time, width, height,
-            p.x, p.y, p.dx, p.dy, p.down ? 1 : 0,
+            p.x, 1 - p.y, p.dx, -p.dy, p.down ? 1 : 0,
           ]))
 
           const encoder = device.createCommandEncoder()
@@ -138,8 +161,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   return (
     <DemoShell
-      title="Fractal Tunnel"
-      hint="Move mouse to bend the tunnel."
+      title="Synthwave Sun"
+      hint="Move mouse to explore the retro grid."
       error={error ?? gpuError}
     >
       <canvas ref={canvasRef} width={1920} height={1080} style={{width:'100%',height:'100%',display:'block'}} className="demo-canvas" />

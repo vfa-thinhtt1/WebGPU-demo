@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useWebGPU } from "./WebGPUContext.jsx"
 import { DemoShell, configureCanvasSize, fullscreenPipeline, startLoop, usePointer } from "./webgpuCommon.jsx"
 
-export default function FractalTunnelDemo() {
+export default function FractalIslandsDemo() {
   const canvasRef  = useRef(null)
   const pointerRef = usePointer(canvasRef)
   const { gpuState, error: gpuError } = useWebGPU()
@@ -49,37 +49,91 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
-fn palette(t:f32)->vec3f{
-  return vec3f(
-    0.5 + 0.5*sin(6.2831*(t+0.0)),
-    0.5 + 0.5*sin(6.2831*(t+0.33)),
-    0.5 + 0.5*sin(6.2831*(t+0.66))
-  );
+fn rxyz(p: vec3f, a: vec3f) -> vec3f {
+    var q = p;
+    let cx = cos(a.x); let sx = sin(a.x);
+    q = vec3f(q.x, cx*q.y - sx*q.z, sx*q.y + cx*q.z);
+    let cy = cos(a.y); let sy = sin(a.y);
+    q = vec3f(cy*q.x + sy*q.z, q.y, -sy*q.x + cy*q.z);
+    let cz = cos(a.z); let sz = sin(a.z);
+    q = vec3f(cz*q.x - sz*q.y, sz*q.x + cz*q.y, q.z);
+    return q;
+}
+
+fn map(p: vec3f) -> f32 {
+    let rep = 4.0;
+    var q = p;
+    // Domain repetition
+    q.x = (fract(q.x / rep + 0.5) - 0.5) * rep;
+    q.z = (fract(q.z / rep + 0.5) - 0.5) * rep;
+    
+    // Animate
+    q.y += sin(u.time + p.x * 0.5) * 0.5;
+    
+    q = rxyz(q, vec3f(u.time * 0.2, u.time * 0.3, 0.0));
+    var s = 1.0;
+    
+    for (var i = 0; i < 4; i++) {
+        q = abs(q) - vec3f(0.5);
+        q = rxyz(q, vec3f(0.1, 0.2, 0.3));
+        let scale = 1.8;
+        q *= scale;
+        s *= scale;
+    }
+    
+    // Sphere
+    let d1 = (length(q) - 1.2) / s;
+    return d1;
 }
 
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-
   let aspect = u.w / u.h;
   var p = (uv - 0.5) * vec2f(aspect,1.0);
-
   let mouse = (vec2f(u.mx,u.my)-0.5) * vec2f(aspect,1.0);
-
   p += mouse * 0.5;
 
-  let r = length(p);
-  let a = atan2(p.y,p.x);
-
-  var t = u.time * 0.6;
-
-  var tunnel = sin(10.0*(1.0/r) + t);
-  var rings  = sin(8.0*r - t*2.0);
-  var v = tunnel + rings;
-
-  let col = palette(v + r*0.5 + u.time*0.1);
-  let glow = 0.15/(r+0.05);
-
-  return vec4f(col*(1.0+glow),1.0);
+  let ro = vec3f(u.time, 2.0, u.time);
+  let rd = normalize(vec3f(p.x, p.y - 0.2, 1.0));
+  
+  var t = 0.0;
+  var iters = 0;
+  var hit = false;
+  for (; iters < 80; iters++) {
+      let d = map(ro + rd*t);
+      if (d < 0.005) { hit = true; break; }
+      if (t > 20.0) { break; }
+      t += d * 0.7; // Under-relax for fractals
+  }
+  
+  var col = vec3f(0.0);
+  if (hit) {
+      let pos = ro + rd*t;
+      let e = vec2f(0.005, 0.0);
+      let n = normalize(vec3f(
+          map(pos + e.xyy) - map(pos - e.xyy),
+          map(pos + e.yxy) - map(pos - e.yxy),
+          map(pos + e.yyx) - map(pos - e.yyx)
+      ));
+      
+      let light = normalize(vec3f(1.0, 1.0, -0.5));
+      let diff = max(dot(n, light), 0.0);
+      let amb = 0.2 + 0.8 * max(n.y, 0.0);
+      
+      col = vec3f(0.7, 0.4, 0.8) * diff + vec3f(0.1, 0.2, 0.3) * amb;
+      
+      // glow
+      col += vec3f(0.5, 0.8, 1.0) * f32(iters) / 80.0 * 2.0;
+  } else {
+      let skyGradient = clamp(rd.y, 0.0, 1.0);
+      col = mix(vec3f(0.9, 0.7, 0.5), vec3f(0.2, 0.3, 0.6), skyGradient);
+  }
+  
+  let fog = exp(-t*0.1);
+  let bg = mix(vec3f(0.9, 0.7, 0.5), vec3f(0.2, 0.3, 0.6), clamp(rd.y, 0.0, 1.0));
+  col = mix(bg, col, fog);
+  
+  return vec4f(col, 1.0);
 }
           `,
         })
@@ -99,7 +153,7 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
           device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
             time, width, height,
-            p.x, p.y, p.dx, p.dy, p.down ? 1 : 0,
+            p.x, 1 - p.y, p.dx, -p.dy, p.down ? 1 : 0,
           ]))
 
           const encoder = device.createCommandEncoder()
@@ -138,8 +192,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   return (
     <DemoShell
-      title="Fractal Tunnel"
-      hint="Move mouse to bend the tunnel."
+      title="Fractal Islands"
+      hint="Watch the surreal landscape drift infinitely."
       error={error ?? gpuError}
     >
       <canvas ref={canvasRef} width={1920} height={1080} style={{width:'100%',height:'100%',display:'block'}} className="demo-canvas" />

@@ -154,7 +154,7 @@ export default function BioBlobsDemo() {
 
             device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
               time, width, height,
-              ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
+              ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
               ...b1, ...b2, ...b3, ...b4
             ]))
 

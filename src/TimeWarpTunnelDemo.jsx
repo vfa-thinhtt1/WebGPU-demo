@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useWebGPU } from "./WebGPUContext.jsx"
 import { DemoShell, configureCanvasSize, fullscreenPipeline, startLoop, usePointer } from "./webgpuCommon.jsx"
 
-export default function FractalTunnelDemo() {
+export default function TimeWarpTunnelDemo() {
   const canvasRef  = useRef(null)
   const pointerRef = usePointer(canvasRef)
   const { gpuState, error: gpuError } = useWebGPU()
@@ -59,27 +59,42 @@ fn palette(t:f32)->vec3f{
 
 @fragment
 fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
-
   let aspect = u.w / u.h;
   var p = (uv - 0.5) * vec2f(aspect,1.0);
 
   let mouse = (vec2f(u.mx,u.my)-0.5) * vec2f(aspect,1.0);
-
-  p += mouse * 0.5;
+  p += mouse * 0.2;
 
   let r = length(p);
   let a = atan2(p.y,p.x);
 
-  var t = u.time * 0.6;
-
-  var tunnel = sin(10.0*(1.0/r) + t);
-  var rings  = sin(8.0*r - t*2.0);
-  var v = tunnel + rings;
-
-  let col = palette(v + r*0.5 + u.time*0.1);
-  let glow = 0.15/(r+0.05);
-
-  return vec4f(col*(1.0+glow),1.0);
+  var col = vec3f(0.0);
+  let time = u.time * 2.0;
+  
+  // Chromatic aberration
+  for (var i=0; i<3; i++) {
+     let offset = f32(i) * 0.05;
+     let r_shifted = max(r - offset * r, 0.001);
+     let z = 1.0 / r_shifted;
+     
+     let tunnel = sin(z * 10.0 + time) * 0.5 + 0.5;
+     let spiral = sin(a * 5.0 + z * 5.0 - time * 2.0) * 0.5 + 0.5;
+     
+     let pattern = tunnel * spiral;
+     let c = palette(z * 0.2 - time * 0.1 + f32(i)*0.2);
+     
+     if (i==0) { col.x += pattern * c.x; }
+     else if (i==1) { col.y += pattern * c.y; }
+     else if (i==2) { col.z += pattern * c.z; }
+  }
+  
+  let darkCore = smoothstep(0.0, 0.3, r); 
+  col *= darkCore;
+  
+  let glow = 0.05 / max(r, 0.001);
+  col += vec3f(0.8, 0.2, 0.5) * glow;
+  
+  return vec4f(col, 1.0);
 }
           `,
         })
@@ -138,8 +153,8 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   return (
     <DemoShell
-      title="Fractal Tunnel"
-      hint="Move mouse to bend the tunnel."
+      title="Time Warp Tunnel"
+      hint="Move mouse to alter the warp trajectory."
       error={error ?? gpuError}
     >
       <canvas ref={canvasRef} width={1920} height={1080} style={{width:'100%',height:'100%',display:'block'}} className="demo-canvas" />

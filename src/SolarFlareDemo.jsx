@@ -134,7 +134,7 @@ fn fsMain(@location(0) uv: vec2f) -> @location(0) vec4f {
 
             device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([
               time, width, height,
-              ptr.x, 1 - ptr.y, ptr.dx, -ptr.dy, ptr.down ? 1 : 0,
+              ptr.x, ptr.y, ptr.dx, ptr.dy, ptr.down ? 1 : 0,
             ]))
 
             const encoder = device.createCommandEncoder()
